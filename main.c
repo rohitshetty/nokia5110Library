@@ -7,23 +7,17 @@
 
 void main(){
 	int i;
-	screen_init();
+	screen_init(); 
 	render_sentence_xy("Hello there \0",15,2);
 	_delay_ms(1000);
 
 	while(1){
 		for(i=32;i<126;i++){
 			screen_clear();
-			set_cursor_bank(36,2);
-			render_char(i);
-			
 			set_cursor_bank(42,2);
 			render_char(i);
 			_delay_ms(500);
 		}
-		
-
-
 	}
 
 }

@@ -4,8 +4,10 @@
 #include<util/delay.h>
 #include "spi.h"
 #include "screen.h"
+#include "pwm.h"
 
 // The 7-bit ASCII character set...
+// This charset font array is taken from Carlos Rodrigues <cefrodrigues@gmail.com> library for arduino.
 const PROGMEM unsigned char charset[96][5] = {
   { 0x00, 0x00, 0x00, 0x00, 0x00 },  // 20 space
   { 0x00, 0x00, 0x5f, 0x00, 0x00 },  // 21 !
@@ -104,12 +106,11 @@ const PROGMEM unsigned char charset[96][5] = {
   { 0x10, 0x08, 0x08, 0x10, 0x08 },  // 7e ~
   { 0x00, 0x00, 0x00, 0x00, 0x00 }   // 7f 
 };
-
-
+//end of Carlos Rodrigues <cefrodrigues@gmail.com> font set array 
 
 
 void screen_reset(void){
-
+	//Resets the status of screen 
 	SCREEN_PORT |=(1<<RST);
 	_delay_ms(10);
 	SCREEN_PORT &= ~(1<<RST);
@@ -121,6 +122,7 @@ void screen_reset(void){
 
 
 void screen_send_command(uint8_t command){
+	//Sends the data in  command mode
 	SELECT_SCREEN;
 	RESET_DC;
 	SPI_TransReceive(command);
@@ -129,6 +131,7 @@ void screen_send_command(uint8_t command){
 
 
 void screen_send_data(uint8_t data){
+	//Data sent over SPI into nokia 5110 screen 
 	SELECT_SCREEN;
 	SET_DC;
 	SPI_TransReceive(data);
@@ -137,7 +140,7 @@ void screen_send_data(uint8_t data){
 }
 
 void render_char(char data){
-	//Loop unrolled.
+	//Loop unrolled. renders character
 		screen_send_data(pgm_read_byte(&charset[data-32][0]));
 		screen_send_data(pgm_read_byte(&charset[data-32][1]));
 		screen_send_data(pgm_read_byte(&charset[data-32][2]));
@@ -146,13 +149,14 @@ void render_char(char data){
 }
 
 void set_cursor_bank(uint8_t x, uint8_t y){
+	//Sets the cursor in required bank. 0<= x <= 83 0<= y <=5 
 	screen_send_command(GOTOXBANK_BASE|x);
 	screen_send_command(GOTOYBANK_BASE|y);
 	screen_send_command(DISPLAY_CONTROL|NORMAL);
 }
 
 void render_sentence_xy(char *sentence, uint8_t x, uint8_t y){
-	//expects the string to have NULL character
+	//expects the string to have NULL character. and renders the string in given x y bank
 	uint8_t counter; 
 	set_cursor_bank(x,y);
 
@@ -164,6 +168,7 @@ void render_sentence_xy(char *sentence, uint8_t x, uint8_t y){
 
 
 void screen_clear(void){
+	//clears the screen
 	int i;
 	screen_send_command(SCREEN_FUNCTION_SET);
 	screen_send_command(DISPLAY_CONTROL|NORMAL);
@@ -178,25 +183,21 @@ void screen_clear(void){
 }
 
 void screen_init(void){
-	int i,j;
+	//initalize the screen
+	pwm_init();                    //set pwm 
+	set_dutycycle(100);            // dutycycle varied from 0 to 255. here set one
 	SPI_init(0x51);
-	screen_send_command(SCREEN_FUNCTION_SET|EXTENDED_FUNCTION);
-	SCREEN_DDR |=((1<<RST)|(1<<DC));
+	screen_send_command(SCREEN_FUNCTION_SET|EXTENDED_FUNCTION);  // extended company mode H=1
+	SCREEN_DDR |=((1<<RST)|(1<<DC));                             // set the Data/command bar line as O/P
 	SCREEN_PORT |=((1<<RST)|(1<<DC));
 	screen_reset();
-	screen_send_command(SCREEN_FUNCTION_SET|EXTENDED_FUNCTION);
-	screen_send_command(BIAS_BASE|0x04);
-	screen_send_command(VOP_BASE|55);
-	screen_send_command(SCREEN_FUNCTION_SET);
-	screen_send_command(GOTOXBANK_BASE);
-	screen_send_command(GOTOYBANK_BASE);
-	screen_send_command(DISPLAY_CONTROL|NORMAL);
-	for(i=0;i<504;i++){
-		screen_send_data(0x00);
-	}
-	
-	
-	render_sentence_xy("ReinventioLabs ",10,2);
+	screen_send_command(SCREEN_FUNCTION_SET|EXTENDED_FUNCTION);    
+	screen_send_command(BIAS_BASE|0x04);                        //Set the bias
+	screen_send_command(VOP_BASE|55);                           // set contrast. actually contrast is also function of bias too.
+	screen_send_command(SCREEN_FUNCTION_SET);                  // get back to H=0 mode. 
+	screen_clear();                                           // this sets the cursor back to (0,0) and clears the screens, puts 
+															 //it into normal mode
+	render_sentence_xy("ReinventioLabs ",10,2);             // Boot screen.
 	screen_send_command(DISPLAY_CONTROL|INVERSE);
 	_delay_ms(1000);
 	screen_clear();
