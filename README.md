@@ -20,7 +20,9 @@ To use the library include ```screen.h``` and use ```screen_init()``` .
 
 For more details check main.c 
 
-```make all`` creates the hex
+```make all``` creates the hex
+
+
 ```make flash``` uploads the hex into the uc
 
 Currently only text interface is working. 
